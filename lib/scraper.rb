@@ -1,47 +1,45 @@
 require 'open-uri'
-require 'pry'
 
 class Scraper
 
   def self.scrape_index_page(index_url)
-    page = Nokogiri::HTML(open(index_url))
-    students = page.css(".student-card")
-
-    student_array = []
-    students.each do |student|
-      s_name = student.css(".student-name").text
-      s_location = student.css(".student-location").text
-      s_profile = student.css("a").attribute("href").value
-      student_array << {name: s_name, location: s_location, profile_url: s_profile}
+    index_page = Nokogiri::HTML(open(index_url))
+    students = []
+    index_page.css("div.roster-cards-container").each do |card|
+      card.css(".student-card a").each do |student|
+        student_profile_link = "#{student.attr('href')}"
+        student_location = student.css('.student-location').text
+        student_name = student.css('.student-name').text
+        students << {name: student_name, location: student_location, profile_url: student_profile_link}
+      end
     end
-    student_array
+    students
   end
 
-  # twitter url, linkedin url, github url, blog url, profile quote, and bio.
-
-  def self.scrape_profile_page(profile_url)
-    page = Nokogiri::HTML(open(profile_url))
-    details = {}
-    details[:bio] = page.css(".bio-content p").text
-    details[:profile_quote] = page.css(".profile-quote").text
-
-    socials = []
-    social = page.css(".social-icon-container").children.select(&:element?)
-    social.each{|s| socials << s.attribute("href").value}
-    # socials.each do |s|
-    #   details[:linkedin] = s if s.match('linkedin')
-    #   details[:github] = s if s.match('github')
-    #   details[:twitter] = s if s.match('twitter')
-    # end
-
-    social.each do |s|
-      ss = s.attribute("href").value
-      details[:linkedin] = ss if ss.match('linkedin')
-      details[:github] = ss if ss.match('github')
-      details[:twitter] = ss if ss.match('twitter')
-      details[:blog] = ss if s.css("img").attribute('src').value == '../assets/img/rss-icon.png'
+  def self.scrape_profile_page(profile_slug)
+    student = {}
+    profile_page = Nokogiri::HTML(open(profile_slug))
+    links = profile_page.css(".social-icon-container").children.css("a").map { |el| el.attribute('href').value}
+    links.each do |link|
+      if link.include?("linkedin")
+        student[:linkedin] = link
+      elsif link.include?("github")
+        student[:github] = link
+      elsif link.include?("twitter")
+        student[:twitter] = link
+      else
+        student[:blog] = link
+      end
     end
-    details
+    # student[:twitter] = profile_page.css(".social-icon-container").children.css("a")[0].attribute("href").value
+    # # if profile_page.css(".social-icon-container").children.css("a")[0]
+    # student[:linkedin] = profile_page.css(".social-icon-container").children.css("a")[1].attribute("href").value if profile_page.css(".social-icon-container").children.css("a")[1]
+    # student[:github] = profile_page.css(".social-icon-container").children.css("a")[2].attribute("href").value if profile_page.css(".social-icon-container").children.css("a")[2]
+    # student[:blog] = profile_page.css(".social-icon-container").children.css("a")[3].attribute("href").value if profile_page.css(".social-icon-container").children.css("a")[3]
+    student[:profile_quote] = profile_page.css(".profile-quote").text if profile_page.css(".profile-quote")
+    student[:bio] = profile_page.css("div.bio-content.content-holder div.description-holder p").text if profile_page.css("div.bio-content.content-holder div.description-holder p")
+
+    student
   end
 
 end
